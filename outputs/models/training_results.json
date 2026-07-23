@@ -1,0 +1,6 @@
+{
+  "optimizer_cv_r2": 0.7528,
+  "allocator_cv_r2": 0.5167,
+  "dataset_rows": 2000,
+  "optimizer_features": 12
+}

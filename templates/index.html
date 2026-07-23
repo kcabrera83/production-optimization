@@ -1,0 +1,195 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Production Optimization Dashboard</title>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body { background: #0f172a; color: #e2e8f0; font-family: 'Segoe UI', system-ui, sans-serif; }
+    .header { background: #1e293b; padding: 20px 40px; border-bottom: 2px solid #3b82f6; }
+    .header h1 { color: #3b82f6; font-size: 1.6rem; }
+    .header p { color: #94a3b8; font-size: 0.85rem; margin-top: 4px; }
+    .container { max-width: 1200px; margin: 30px auto; padding: 0 20px; }
+    .grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(350px, 1fr)); gap: 20px; }
+    .card { background: #1e293b; border-radius: 12px; padding: 24px; border: 1px solid #334155; }
+    .card h2 { color: #3b82f6; font-size: 1.1rem; margin-bottom: 16px; }
+    .form-group { margin-bottom: 12px; }
+    .form-group label { display: block; color: #94a3b8; font-size: 0.8rem; margin-bottom: 4px; text-transform: uppercase; letter-spacing: 0.5px; }
+    .form-group input, .form-group select { width: 100%; padding: 10px 12px; background: #0f172a; border: 1px solid #475569; border-radius: 6px; color: #e2e8f0; font-size: 0.9rem; }
+    .form-group input:focus, .form-group select:focus { outline: none; border-color: #3b82f6; }
+    .btn { background: #3b82f6; color: white; border: none; padding: 10px 20px; border-radius: 6px; cursor: pointer; font-size: 0.9rem; width: 100%; margin-top: 8px; }
+    .btn:hover { background: #2563eb; }
+    .result { margin-top: 16px; padding: 14px; background: #0f172a; border-radius: 8px; border: 1px solid #334155; display: none; }
+    .result.show { display: block; }
+    .result .value { color: #3b82f6; font-size: 1.4rem; font-weight: 700; }
+    .result .label { color: #94a3b8; font-size: 0.75rem; text-transform: uppercase; margin-bottom: 4px; }
+    .chart-card { grid-column: 1 / -1; }
+    .charts-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; margin-top: 20px; }
+    .status { display: inline-block; width: 8px; height: 8px; border-radius: 50%; background: #22c55e; margin-right: 6px; }
+    .footer { text-align: center; padding: 30px; color: #64748b; font-size: 0.75rem; border-top: 1px solid #334155; margin-top: 40px; }
+  </style>
+</head>
+<body>
+  <div class="header">
+    <h1>Production Optimization Dashboard</h1>
+    <p><span class="status"></span>Field production parameter optimization and well allocation</p>
+  </div>
+
+  <div class="container">
+    <div class="grid">
+
+      <div class="card">
+        <h2>Net Profit Optimizer</h2>
+        <form id="optimizeForm">
+          <div class="form-group"><label>Well Count</label><input type="number" id="opt_wells" value="40" min="5" max="120"></div>
+          <div class="form-group"><label>Total Water Rate (bbl/d)</label><input type="number" id="opt_water" value="800" step="10"></div>
+          <div class="form-group"><label>Total Gas Rate (mcf/d)</label><input type="number" id="opt_gas" value="2000" step="10"></div>
+          <div class="form-group"><label>Water Injection Rate (bbl/d)</label><input type="number" id="opt_inject" value="1500" step="10"></div>
+          <div class="form-group"><label>Lift Type</label>
+            <select id="opt_lift">
+              <option>ESP</option><option>Rod_Pump</option><option>Gas_Lift</option><option>PCP</option><option>Jet_Pump</option>
+            </select>
+          </div>
+          <div class="form-group"><label>Operating Cost (USD)</label><input type="number" id="opt_cost" value="85000" step="1000"></div>
+          <div class="form-group"><label>Revenue per BBL (USD)</label><input type="number" id="opt_rev" value="72" step="1"></div>
+          <div class="form-group"><label>Artificial Lift Power (kW)</label><input type="number" id="opt_power" value="120" step="1"></div>
+          <button type="submit" class="btn">Optimize</button>
+        </form>
+        <div class="result" id="optResult">
+          <div class="label">Predicted Net Profit</div>
+          <div class="value" id="optProfit">$0</div>
+        </div>
+      </div>
+
+      <div class="card">
+        <h2>Well Allocation</h2>
+        <form id="allocateForm">
+          <div class="form-group"><label>Well Count</label><input type="number" id="alloc_wells" value="40" min="5" max="120"></div>
+          <div class="form-group"><label>Total Water Rate (bbl/d)</label><input type="number" id="alloc_water" value="800" step="10"></div>
+          <div class="form-group"><label>Total Gas Rate (mcf/d)</label><input type="number" id="alloc_gas" value="2000" step="10"></div>
+          <div class="form-group"><label>Water Injection Rate (bbl/d)</label><input type="number" id="alloc_inject" value="1500" step="10"></div>
+          <div class="form-group"><label>Lift Type</label>
+            <select id="alloc_lift">
+              <option>ESP</option><option>Rod_Pump</option><option>Gas_Lift</option><option>PCP</option><option>Jet_Pump</option>
+            </select>
+          </div>
+          <div class="form-group"><label>Operating Cost (USD)</label><input type="number" id="alloc_cost" value="85000" step="1000"></div>
+          <div class="form-group"><label>Revenue per BBL (USD)</label><input type="number" id="alloc_rev" value="72" step="1"></div>
+          <div class="form-group"><label>Artificial Lift Power (kW)</label><input type="number" id="alloc_power" value="120" step="1"></div>
+          <button type="submit" class="btn">Allocate</button>
+        </form>
+        <div class="result" id="allocResult">
+          <div class="label">Predicted Production Efficiency</div>
+          <div class="value" id="allocEff">0.00</div>
+        </div>
+      </div>
+
+      <div class="card chart-card">
+        <h2>Model Performance</h2>
+        <div class="charts-grid">
+          <div><canvas id="cvChart"></canvas></div>
+          <div><canvas id="fiChart"></canvas></div>
+        </div>
+      </div>
+
+    </div>
+  </div>
+
+  <div class="footer">Elaborado por Ing. Kelvin Cabrera</div>
+
+  <script>
+    let fiChartInstance = null;
+
+    async function loadModels() {
+      try {
+        const res = await fetch('/api/models');
+        const data = await res.json();
+
+        new Chart(document.getElementById('cvChart'), {
+          type: 'bar',
+          data: {
+            labels: ['Field Optimizer', 'Allocation Model'],
+            datasets: [{
+              label: 'CV R2 Score',
+              data: [data.field_optimizer.cv_r2, data.allocation_model.cv_r2],
+              backgroundColor: ['#3b82f6', '#22c55e'],
+              borderRadius: 6,
+            }]
+          },
+          options: {
+            responsive: true,
+            plugins: { title: { display: true, text: 'Cross-Validation R2', color: '#e2e8f0' } },
+            scales: { y: { beginAtZero: true, max: 1, ticks: { color: '#94a3b8' } , grid: { color: '#334155' } }, x: { ticks: { color: '#94a3b8' }, grid: { color: '#334155' } } }
+          }
+        });
+
+        const fi = data.field_optimizer.feature_importances;
+        const labels = Object.keys(fi).slice(0, 8);
+        const values = labels.map(k => fi[k]);
+        fiChartInstance = new Chart(document.getElementById('fiChart'), {
+          type: 'bar',
+          data: {
+            labels: labels,
+            datasets: [{
+              label: 'Importance',
+              data: values,
+              backgroundColor: '#f59e0b',
+              borderRadius: 4,
+            }]
+          },
+          options: {
+            indexAxis: 'y',
+            responsive: true,
+            plugins: { title: { display: true, text: 'Feature Importances', color: '#e2e8f0' } },
+            scales: { x: { ticks: { color: '#94a3b8' }, grid: { color: '#334155' } }, y: { ticks: { color: '#94a3b8' }, grid: { color: '#334155' } } }
+          }
+        });
+      } catch(e) { console.error('Failed to load models', e); }
+    }
+
+    document.getElementById('optimizeForm').addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const payload = {
+        well_count: +document.getElementById('opt_wells').value,
+        total_water_rate: +document.getElementById('opt_water').value,
+        total_gas_rate: +document.getElementById('opt_gas').value,
+        water_injection_rate: +document.getElementById('opt_inject').value,
+        lift_type: document.getElementById('opt_lift').value,
+        operating_cost_usd: +document.getElementById('opt_cost').value,
+        revenue_per_bbl: +document.getElementById('opt_rev').value,
+        artificial_lift_power_kw: +document.getElementById('opt_power').value,
+      };
+      const res = await fetch('/api/optimize', { method: 'POST', headers: {'Content-Type':'application/json'}, body: JSON.stringify(payload) });
+      const data = await res.json();
+      if (data.predicted_net_profit !== undefined) {
+        document.getElementById('optProfit').textContent = '$' + data.predicted_net_profit.toLocaleString();
+        document.getElementById('optResult').classList.add('show');
+      }
+    });
+
+    document.getElementById('allocateForm').addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const payload = {
+        well_count: +document.getElementById('alloc_wells').value,
+        total_water_rate: +document.getElementById('alloc_water').value,
+        total_gas_rate: +document.getElementById('alloc_gas').value,
+        water_injection_rate: +document.getElementById('alloc_inject').value,
+        lift_type: document.getElementById('alloc_lift').value,
+        operating_cost_usd: +document.getElementById('alloc_cost').value,
+        revenue_per_bbl: +document.getElementById('alloc_rev').value,
+        artificial_lift_power_kw: +document.getElementById('alloc_power').value,
+      };
+      const res = await fetch('/api/allocate', { method: 'POST', headers: {'Content-Type':'application/json'}, body: JSON.stringify(payload) });
+      const data = await res.json();
+      if (data.predicted_production_efficiency !== undefined) {
+        document.getElementById('allocEff').textContent = (data.predicted_production_efficiency * 100).toFixed(1) + '%';
+        document.getElementById('allocResult').classList.add('show');
+      }
+    });
+
+    loadModels();
+  </script>
+</body>
+</html>
