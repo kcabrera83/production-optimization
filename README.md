@@ -1,12 +1,30 @@
 # Production Optimization ML System
 
-Machine learning system for oil field production optimization and well allocation.
+Machine learning system for oil field production optimization and well allocation using operations research and multi-objective optimization.
+
+## Tech Stack
+
+| Component | Technology |
+|-----------|-----------|
+| Operations Research | **OR-Tools** - constraint optimization |
+| Multi-objective Optimization | **pymoo** - evolutionary algorithms |
+| Data Processing | pandas, numpy, joblib |
+| Web Server | **FastAPI** + uvicorn |
+| Monitoring | prometheus-fastapi-instrumentator |
+| Validation | pydantic v2 |
+| Visualization | matplotlib, seaborn |
+
+### Key Libraries
+- OR-Tools - Google's operations research optimization suite
+- pymoo - Multi-objective optimization framework
+- FastAPI - Modern async web framework
+- pandas / numpy - Data processing
 
 ## Overview
 
 This project provides two ML models:
 
-- **Field Optimizer** (GradientBoostingRegressor) - Predicts net profit based on field production parameters
+- **Field Optimizer** (OR-Tools + pymoo) - Predicts net profit based on field production parameters
 - **Allocation Model** (RandomForestRegressor) - Predicts production efficiency for well allocation decisions
 
 ## Directory Structure
@@ -41,7 +59,7 @@ python train.py
 python app.py
 ```
 
-The Flask application runs on port 5014.
+The FastAPI application runs on port 5014.
 
 ## API Endpoints
 
@@ -76,8 +94,6 @@ curl -X POST http://localhost:5014/api/optimize \
 pytest test_api.py -v
 ```
 
-## License
-
-MIT
+---
 
 Elaborado por Ing. Kelvin Cabrera
