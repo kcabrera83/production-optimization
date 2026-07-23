@@ -118,5 +118,19 @@ def allocate():
     })
 
 
+@app.route("/api/docs", methods=["GET"])
+def api_docs():
+    return jsonify({
+        "openapi": "3.0.0",
+        "info": {"title": "Production Optimization", "version": "1.0.0"},
+        "paths": {
+            "/api/health": {"get": {"summary": "Health check"}},
+            "/api/models": {"get": {"summary": "Model info"}},
+            "/api/optimize": {"post": {"summary": "Predict net profit for field operations"}},
+            "/api/allocate": {"post": {"summary": "Predict production efficiency allocation"}},
+        }
+    })
+
+
 if __name__ == "__main__":
     app.run(host="0.0.0.0", port=5014, debug=False)
