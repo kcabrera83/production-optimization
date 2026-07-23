@@ -1,10 +1,14 @@
+"""FastAPI for production optimization."""
+
 import os
 import sys
-import json
 import joblib
 import numpy as np
 import pandas as pd
-from flask import Flask, request, jsonify, render_template
+from typing import Optional
+from fastapi import FastAPI, HTTPException
+from fastapi.middleware.cors import CORSMiddleware
+from pydantic import BaseModel
 
 sys.path.insert(0, os.path.dirname(__file__))
 
@@ -16,43 +20,73 @@ from production_optimization.utils.preprocessor import (
 from production_optimization.models.field_optimizer import FieldOptimizer
 from production_optimization.models.allocation_model import AllocationModel
 
-app = Flask(__name__)
+app = FastAPI(
+    title="Production Optimization",
+    description="Field production optimization and allocation prediction",
+    version="1.0.0",
+)
+
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
 
 MODEL_DIR = os.path.join("outputs", "models")
 
 optimizer = FieldOptimizer()
 allocator = AllocationModel()
-
-try:
-    optimizer.load(os.path.join(MODEL_DIR, "field_optimizer.joblib"))
-    allocator.load(os.path.join(MODEL_DIR, "allocation_model.joblib"))
-    opt_preprocessor = joblib.load(os.path.join(MODEL_DIR, "preprocessor_opt.joblib"))
-    alloc_preprocessor = joblib.load(os.path.join(MODEL_DIR, "preprocessor_alloc.joblib"))
-    models_loaded = True
-except Exception:
-    models_loaded = False
-    opt_preprocessor = None
-    alloc_preprocessor = None
+models_loaded = False
+opt_preprocessor = None
+alloc_preprocessor = None
 
 
-@app.route("/")
-def index():
-    return render_template("index.html")
+@app.on_event("startup")
+async def load_models():
+    global models_loaded, opt_preprocessor, alloc_preprocessor
+    try:
+        optimizer.load(os.path.join(MODEL_DIR, "field_optimizer.joblib"))
+        allocator.load(os.path.join(MODEL_DIR, "allocation_model.joblib"))
+        opt_preprocessor = joblib.load(os.path.join(MODEL_DIR, "preprocessor_opt.joblib"))
+        alloc_preprocessor = joblib.load(os.path.join(MODEL_DIR, "preprocessor_alloc.joblib"))
+        models_loaded = True
+    except Exception:
+        models_loaded = False
 
 
-@app.route("/api/health", methods=["GET"])
-def health():
-    return jsonify({
-        "status": "healthy",
-        "models_loaded": models_loaded,
-    })
+class FieldRequest(BaseModel):
+    well_count: int
+    total_water_rate: float
+    total_gas_rate: float
+    water_injection_rate: float
+    lift_type: str
+    operating_cost_usd: float
+    revenue_per_bbl: float
+    artificial_lift_power_kw: float
 
 
-@app.route("/api/models", methods=["GET"])
-def models_info():
+class OptimizeResponse(BaseModel):
+    predicted_net_profit: float
+    input: dict
+
+
+class AllocateResponse(BaseModel):
+    predicted_production_efficiency: float
+    input: dict
+
+
+@app.get("/api/health")
+async def health():
+    return {"status": "healthy", "models_loaded": models_loaded}
+
+
+@app.get("/api/models")
+async def models_info():
     if not models_loaded:
-        return jsonify({"error": "Models not loaded"}), 500
-    return jsonify({
+        raise HTTPException(status_code=500, detail="Models not loaded")
+    return {
         "field_optimizer": {
             "algorithm": "GradientBoostingRegressor",
             "cv_r2": optimizer.cv_score,
@@ -63,74 +97,26 @@ def models_info():
             "cv_r2": allocator.cv_score,
             "feature_importances": allocator.feature_importances(),
         },
-    })
+    }
 
 
-@app.route("/api/optimize", methods=["POST"])
-def optimize():
+@app.post("/api/optimize", response_model=OptimizeResponse)
+async def optimize(request: FieldRequest):
     if not models_loaded:
-        return jsonify({"error": "Models not loaded"}), 500
-
-    data = request.get_json(force=True)
-    if not data:
-        return jsonify({"error": "No JSON body provided"}), 400
-
-    required = ["well_count", "total_water_rate", "total_gas_rate",
-                 "water_injection_rate", "lift_type", "operating_cost_usd",
-                 "revenue_per_bbl", "artificial_lift_power_kw"]
-    missing = [f for f in required if f not in data]
-    if missing:
-        return jsonify({"error": f"Missing fields: {missing}"}), 400
-
+        raise HTTPException(status_code=500, detail="Models not loaded")
+    data = request.model_dump()
     df = pd.DataFrame([data])
     X = opt_preprocessor.transform(df)
     pred = optimizer.predict(X)[0]
-
-    return jsonify({
-        "predicted_net_profit": round(float(pred), 2),
-        "input": data,
-    })
+    return OptimizeResponse(predicted_net_profit=round(float(pred), 2), input=data)
 
 
-@app.route("/api/allocate", methods=["POST"])
-def allocate():
+@app.post("/api/allocate", response_model=AllocateResponse)
+async def allocate(request: FieldRequest):
     if not models_loaded:
-        return jsonify({"error": "Models not loaded"}), 500
-
-    data = request.get_json(force=True)
-    if not data:
-        return jsonify({"error": "No JSON body provided"}), 400
-
-    required = ["well_count", "total_water_rate", "total_gas_rate",
-                 "water_injection_rate", "lift_type", "operating_cost_usd",
-                 "revenue_per_bbl", "artificial_lift_power_kw"]
-    missing = [f for f in required if f not in data]
-    if missing:
-        return jsonify({"error": f"Missing fields: {missing}"}), 400
-
+        raise HTTPException(status_code=500, detail="Models not loaded")
+    data = request.model_dump()
     df = pd.DataFrame([data])
     X = alloc_preprocessor.transform(df)
     pred = allocator.predict(X)[0]
-
-    return jsonify({
-        "predicted_production_efficiency": round(float(pred), 4),
-        "input": data,
-    })
-
-
-@app.route("/api/docs", methods=["GET"])
-def api_docs():
-    return jsonify({
-        "openapi": "3.0.0",
-        "info": {"title": "Production Optimization", "version": "1.0.0"},
-        "paths": {
-            "/api/health": {"get": {"summary": "Health check"}},
-            "/api/models": {"get": {"summary": "Model info"}},
-            "/api/optimize": {"post": {"summary": "Predict net profit for field operations"}},
-            "/api/allocate": {"post": {"summary": "Predict production efficiency allocation"}},
-        }
-    })
-
-
-if __name__ == "__main__":
-    app.run(host="0.0.0.0", port=5014, debug=False)
+    return AllocateResponse(predicted_production_efficiency=round(float(pred), 4), input=data)

@@ -1,19 +1,13 @@
-"""Integration tests for the Flask API endpoints."""
+"""Integration tests for the Production Optimization FastAPI endpoints."""
+
 import sys
-import json
 import pytest
+from fastapi.testclient import TestClient
 
 sys.path.insert(0, ".")
-
 from app import app
 
-
-@pytest.fixture
-def client():
-    app.config["TESTING"] = True
-    with app.test_client() as c:
-        yield c
-
+client = TestClient(app)
 
 SAMPLE_PAYLOAD = {
     "well_count": 45,
@@ -27,58 +21,52 @@ SAMPLE_PAYLOAD = {
 }
 
 
-def test_health(client):
+def test_health():
     r = client.get("/api/health")
     assert r.status_code == 200
-    data = r.get_json()
+    data = r.json()
     assert data["status"] == "healthy"
 
 
-def test_index(client):
-    r = client.get("/")
-    assert r.status_code == 200
-    assert b"Production Optimization Dashboard" in r.data
-
-
-def test_models(client):
+def test_models():
     r = client.get("/api/models")
     assert r.status_code == 200
-    data = r.get_json()
+    data = r.json()
     assert "field_optimizer" in data
     assert "allocation_model" in data
     assert "cv_r2" in data["field_optimizer"]
     assert "cv_r2" in data["allocation_model"]
 
 
-def test_optimize(client):
+def test_optimize():
     r = client.post("/api/optimize", json=SAMPLE_PAYLOAD)
     assert r.status_code == 200
-    data = r.get_json()
+    data = r.json()
     assert "predicted_net_profit" in data
     assert isinstance(data["predicted_net_profit"], float)
 
 
-def test_allocate(client):
+def test_allocate():
     r = client.post("/api/allocate", json=SAMPLE_PAYLOAD)
     assert r.status_code == 200
-    data = r.get_json()
+    data = r.json()
     assert "predicted_production_efficiency" in data
     assert isinstance(data["predicted_production_efficiency"], float)
 
 
-def test_optimize_missing_field(client):
+def test_optimize_missing_field():
     bad = {k: v for k, v in SAMPLE_PAYLOAD.items() if k != "well_count"}
     r = client.post("/api/optimize", json=bad)
-    assert r.status_code == 400
+    assert r.status_code == 422
 
 
-def test_allocate_missing_field(client):
+def test_allocate_missing_field():
     bad = {k: v for k, v in SAMPLE_PAYLOAD.items() if k != "lift_type"}
     r = client.post("/api/allocate", json=bad)
-    assert r.status_code == 400
+    assert r.status_code == 422
 
 
-def test_optimize_multiple_inputs(client):
+def test_optimize_multiple_inputs():
     payloads = [
         {**SAMPLE_PAYLOAD, "well_count": 10, "lift_type": "Rod_Pump"},
         {**SAMPLE_PAYLOAD, "well_count": 80, "lift_type": "Gas_Lift"},
@@ -87,10 +75,10 @@ def test_optimize_multiple_inputs(client):
     for p in payloads:
         r = client.post("/api/optimize", json=p)
         assert r.status_code == 200
-        assert "predicted_net_profit" in r.get_json()
+        assert "predicted_net_profit" in r.json()
 
 
-def test_allocate_multiple_inputs(client):
+def test_allocate_multiple_inputs():
     payloads = [
         {**SAMPLE_PAYLOAD, "well_count": 10, "lift_type": "Rod_Pump"},
         {**SAMPLE_PAYLOAD, "well_count": 80, "lift_type": "Gas_Lift"},
@@ -98,4 +86,4 @@ def test_allocate_multiple_inputs(client):
     for p in payloads:
         r = client.post("/api/allocate", json=p)
         assert r.status_code == 200
-        assert "predicted_production_efficiency" in r.get_json()
+        assert "predicted_production_efficiency" in r.json()
