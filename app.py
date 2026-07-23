@@ -24,7 +24,7 @@ from production_optimization.models.allocation_model import AllocationModel
 app = FastAPI(
     title="Production Optimization",
     description="Field production optimization and allocation prediction",
-    version="1.0.0",
+    version="2.0.0",
 )
 
 app.add_middleware(
@@ -91,12 +91,12 @@ async def models_info():
         raise HTTPException(status_code=500, detail="Models not loaded")
     return {
         "field_optimizer": {
-            "algorithm": "GradientBoostingRegressor",
+            "algorithm": "pymoo NSGA2 multi-objective",
             "cv_r2": optimizer.cv_score,
             "feature_importances": optimizer.feature_importances(),
         },
         "allocation_model": {
-            "algorithm": "RandomForestRegressor",
+            "algorithm": "OR-Tools LP + linear regression",
             "cv_r2": allocator.cv_score,
             "feature_importances": allocator.feature_importances(),
         },
@@ -123,4 +123,3 @@ async def allocate(request: FieldRequest):
     X = alloc_preprocessor.transform(df)
     pred = allocator.predict(X)[0]
     return AllocateResponse(predicted_production_efficiency=round(float(pred), 4), input=data)
-

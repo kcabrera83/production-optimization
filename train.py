@@ -1,4 +1,4 @@
-"""Train field optimizer and allocation model, save artifacts."""
+"""Train field optimizer and allocation model, save artifacts using OR-Tools + pymoo."""
 import os
 import sys
 import json
@@ -21,8 +21,7 @@ def main():
     df.to_csv("outputs/field_data.csv", index=False)
     print(f"  Dataset shape: {df.shape}")
 
-    # --- Field Optimizer (net_profit) ---
-    print("\nTraining Field Optimizer (GradientBoosting) ...")
+    print("\nTraining Field Optimizer (pymoo NSGA2) ...")
     preproc_opt = FieldPreprocessor()
     X_opt, y_opt = preproc_opt.fit_transform(df, OPT_TARGET)
     feature_names = preproc_opt.get_feature_names()
@@ -30,14 +29,12 @@ def main():
     optimizer = FieldOptimizer()
     cv_opt = optimizer.train(X_opt, y_opt, feature_names)
     optimizer.save("outputs/models/field_optimizer.joblib")
-    preproc_opt.transformer
     import joblib
     joblib.dump(preproc_opt.transformer, "outputs/models/preprocessor_opt.joblib")
     print(f"  CV R2: {cv_opt:.4f}")
     print(f"  Top features: {dict(list(optimizer.feature_importances().items())[:5])}")
 
-    # --- Allocation Model (production_efficiency) ---
-    print("\nTraining Allocation Model (RandomForest) ...")
+    print("\nTraining Allocation Model (OR-Tools LP) ...")
     preproc_alloc = FieldPreprocessor()
     X_alloc, y_alloc = preproc_alloc.fit_transform(df, ALLOC_TARGET)
 
@@ -47,6 +44,10 @@ def main():
     joblib.dump(preproc_alloc.transformer, "outputs/models/preprocessor_alloc.joblib")
     print(f"  CV R2: {cv_alloc:.4f}")
     print(f"  Top features: {dict(list(allocator.feature_importances().items())[:5])}")
+
+    lp_result = allocator.optimize_allocation(n_vars=5)
+    if lp_result:
+        print(f"  LP allocation result: {lp_result}")
 
     results = {
         "optimizer_cv_r2": round(cv_opt, 4),
