@@ -8,6 +8,7 @@ import pandas as pd
 from typing import Optional
 from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
+from prometheus_fastapi_instrumentator import Instrumentator
 from pydantic import BaseModel
 
 sys.path.insert(0, os.path.dirname(__file__))
@@ -33,6 +34,8 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+Instrumentator().instrument(app).expose(app)
 
 MODEL_DIR = os.path.join("outputs", "models")
 
@@ -120,3 +123,4 @@ async def allocate(request: FieldRequest):
     X = alloc_preprocessor.transform(df)
     pred = allocator.predict(X)[0]
     return AllocateResponse(predicted_production_efficiency=round(float(pred), 4), input=data)
+
