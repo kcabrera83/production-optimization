@@ -11,3 +11,6 @@ venv/
 outputs/field_data.csv
 .idea/
 .vscode/
+
+# Streamlit Cloud model files
+!outputs/models/*.pkl
