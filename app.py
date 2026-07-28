@@ -1,5 +1,3 @@
-"""FastAPI for production optimization."""
-
 import os
 import sys
 import joblib
@@ -24,7 +22,7 @@ from production_optimization.models.allocation_model import AllocationModel
 app = FastAPI(
     title="Production Optimization",
     description="Field production optimization and allocation prediction",
-    version="2.0.0",
+    version="0.1",
 )
 
 app.add_middleware(

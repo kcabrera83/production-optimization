@@ -17,7 +17,7 @@ def main():
     os.makedirs("outputs/models", exist_ok=True)
 
     print("Generating synthetic field data ...")
-    df = generate_field_data(n_samples=2000, random_state=42)
+    df = generate_field_data(n_samples=2000, random_state=2024)
     df.to_csv("outputs/field_data.csv", index=False)
     print(f"  Dataset shape: {df.shape}")
 

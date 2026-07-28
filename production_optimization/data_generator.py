@@ -2,7 +2,7 @@ import numpy as np
 import pandas as pd
 
 
-def generate_field_data(n_samples=1000, random_state=42):
+def generate_field_data(n_samples=1000, random_state=2024):
     rng = np.random.RandomState(random_state)
 
     well_count = rng.randint(5, 120, n_samples)

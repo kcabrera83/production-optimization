@@ -1,5 +1,3 @@
-"""Field optimizer using pymoo NSGA2 multi-objective optimization."""
-
 import numpy as np
 import joblib
 from pymoo.algorithms.moo.nsga2 import NSGA2
@@ -92,7 +90,7 @@ class FieldOptimizer:
         self.algorithm = NSGA2(pop_size=50)
         termination = get_termination("n_gen", 50)
         self._result = minimize(
-            self.problem, self.algorithm, termination, seed=42, verbose=False
+            self.problem, self.algorithm, termination, seed=2024, verbose=False
         )
         return self.cv_score
 

@@ -1,5 +1,3 @@
-"""Integration tests for the Production Optimization FastAPI endpoints."""
-
 import sys
 import pytest
 from fastapi.testclient import TestClient

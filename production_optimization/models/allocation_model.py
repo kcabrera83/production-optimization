@@ -1,5 +1,3 @@
-"""Allocation model using OR-Tools linear programming."""
-
 import numpy as np
 import joblib
 from ortools.linear_solver import pywraplp
