@@ -1,56 +1,37 @@
 import streamlit as st
-import joblib
-import numpy as np
 import sys
 from pathlib import Path
 sys.path.insert(0, str(Path(__file__).parent))
 
 st.set_page_config(page_title="Production Optimization", layout="wide")
 st.title("Production Optimization")
-st.markdown("Optimize field production and well allocation to maximize net profit.")
+st.markdown("Optimize field production to maximize net profit.")
 
-@st.cache_resource
-def load_models():
-    d = Path(__file__).parent / "outputs" / "models"
-    return {k: joblib.load(d / v) for k, v in [("profit", "net_profit_model.pkl"), ("efficiency", "production_efficiency_model.pkl")]}
-
-models = load_models()
+import joblib, numpy as np
+d = Path(__file__).parent / 'outputs' / 'models'
+models = {'profit': joblib.load(d / 'net_profit_model.pkl'), 'efficiency': joblib.load(d / 'production_efficiency_model.pkl')}
 
 st.sidebar.header("Input Parameters")
-well_count = st.sidebar.slider("Well Count", 1, 100, 50)
-water_rate_bbl_d = st.sidebar.slider("Water Rate Bbl D", 0, 50000, 25000)
-gas_rate_mcf_d = st.sidebar.slider("Gas Rate Mcf D", 0, 100000, 50000)
-water_injection_bbl_d = st.sidebar.slider("Water Injection Bbl D", 0, 50000, 25000)
-lift_type = st.sidebar.selectbox("Lift Type", ['ESP', 'gas_lift', 'rod_pump', 'pcp'])
-operating_cost_usd = st.sidebar.slider("Operating Cost Usd", 1000, 100000, 50500)
-revenue_per_bbl = st.sidebar.slider("Revenue Per Bbl", 20, 100, 60)
-lift_power_kw = st.sidebar.slider("Lift Power Kw", 0, 10000, 5000)
+well_count = st.sidebar.slider('Well Count', 1, 100, 50)
+water_rate = st.sidebar.slider('Water Rate', 0, 50000, 25000)
+gas_rate = st.sidebar.slider('Gas Rate', 0, 100000, 50000)
+water_injection = st.sidebar.slider('Water Injection', 0, 50000, 25000)
+lift_type = st.sidebar.selectbox('Lift Type', ['ESP','gas_lift','rod_pump','pcp'])
+opex = st.sidebar.slider('Opex', 1000, 100000, 50500)
+revenue = st.sidebar.slider('Revenue', 20, 100, 60)
+lift_power = st.sidebar.slider('Lift Power', 0, 10000, 5000)
 
-if st.sidebar.button("Run Prediction"):
+if st.sidebar.button("Run"):
     try:
-        features = np.array([[well_count, water_rate_bbl_d, gas_rate_mcf_d, water_injection_bbl_d, lift_type, operating_cost_usd, revenue_per_bbl, lift_power_kw]])
-        m = models["profit"]
-        if isinstance(m, dict):
-            X = m.get("scaler").transform(features) if m.get("scaler") else features
-            pred = m["model"].predict(X)
-            if "label_encoder" in m:
-                result = m["label_encoder"].inverse_transform(pred)[0]
+        x = np.array([[well_count, water_rate, gas_rate, water_injection, lift_type, opex, revenue, lift_power]])
+        cols = st.columns(2)
+        for i, (k, m) in enumerate(models.items()):
+            X = m['scaler'].transform(x)
+            p = m['model'].predict(X)
+            if 'label_encoder' in m:
+                val = m['label_encoder'].inverse_transform(p)[0]
             else:
-                result = pred[0]
-        else:
-            result = m.predict(features)[0]
-        st.metric("Profit", result if isinstance(result, str) else f"{result:.4f}")
-        m = models["efficiency"]
-        if isinstance(m, dict):
-            X = m.get("scaler").transform(features) if m.get("scaler") else features
-            pred = m["model"].predict(X)
-            if "label_encoder" in m:
-                result = m["label_encoder"].inverse_transform(pred)[0]
-            else:
-                result = pred[0]
-        else:
-            result = m.predict(features)[0]
-        st.metric("Efficiency", result if isinstance(result, str) else f"{result:.4f}")
+                val = f'{p[0]:.2f}'
+            cols[i].metric(k.title(), val)
     except Exception as e:
-        st.error(f"Error: {e}")
-
+        st.error(str(e))
