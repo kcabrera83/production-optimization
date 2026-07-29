@@ -1,29 +1,52 @@
-import streamlit as st, joblib, numpy as np, matplotlib.pyplot as plt
-from pathlib import Path; import sys; sys.path.insert(0, str(Path(__file__).parent))
 
-st.set_page_config(page_title="Production Optimizer")
-st.title("Production Optimizer")
+import streamlit as st
+import numpy as np
+from pydantic import BaseModel, Field
+from typing import Dict, Any
+import joblib, os
 
-p = Path(__file__).parent / 'outputs' / 'models'
-models = {'profit': joblib.load(p / 'net_profit_model.pkl'), 'efficiency': joblib.load(p / 'production_efficiency_model.pkl')}
+st.set_page_config(page_title="Production Optimization", page_icon=":bar_chart:", layout="wide")
+st.title("Production Optimization")
 
-step = st.session_state.get('step', 1)
+class Payload(BaseModel):
+    features: Dict[str, float] = Field(default_factory=dict)
 
-if step == 1:
-    st.subheader('Step 1: Basic Parameters')
-    wells = st.slider('Wells', 1, 100, 50)
-    water = st.slider('Water', 0, 50000, 25000)
-    gas = st.slider('Gas', 0, 100000, 50000)
-    inj = st.slider('Inj', 0, 50000, 25000)
-    if st.button('Next'):
-        st.session_state.update({'step': 2})
-        st.rerun()
+class InferenceEngine:
+    def __init__(self):
+        self._models: Dict[str, Any] = {}
+        self._load()
+    
+    def _load(self):
+        for f in os.listdir("outputs/models"):
+            if f.endswith(".pkl"):
+                data = joblib.load(os.path.join("outputs/models", f))
+                self._models[f.replace(".pkl", "")] = data
+    
+    def predict(self, model_key: str, features: dict) -> float:
+        data = self._models.get(model_key)
+        if not data:
+            raise ValueError(f"Model {model_key} not found")
+        feats = data.get("feature_names", list(features.keys()))
+        X = np.array([features.get(f, 0) for f in feats]).reshape(1, -1)
+        if data.get("scaler"):
+            X = data["scaler"].transform(X)
+        return data["model"].predict(X)[0]
 
-elif step == 2:
-    st.subheader('Step 2: Advanced Parameters')
-    lift = st.selectbox('Lift', ['ESP','gas','rod','pcp'])
-    opex = st.slider('Opex', 1000, 100000, 50500)
-    rev = st.slider('Rev', 20, 100, 60)
-    power = st.slider('Power', 0, 10000, 5000)
-    if st.button('Run'):
-        st.session_state['step'] = 1
+engine = InferenceEngine()
+
+with st.sidebar:
+    st.header("Model Selection")
+    model_key = st.selectbox("Choose model", list(engine._models.keys()) or ["default"])
+    st.divider()
+    st.caption("Lift gas allocation and production network optimization")
+
+data = engine._models.get(model_key, {})
+feats = data.get("feature_names", [f"f{i}" for i in range(4)])
+cols = st.columns(3)
+inputs = {}
+for i, f in enumerate(feats):
+    with cols[i % 3]:
+        inputs[f] = st.number_input(f.replace("_", " ").title(), value=0.0, key=f)
+if st.button("Run inference", type="primary"):
+    result = engine.predict(model_key, inputs)
+    st.metric("Prediction", f"{result:.4f}")
