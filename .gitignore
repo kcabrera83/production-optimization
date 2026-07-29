@@ -17,3 +17,6 @@ outputs/field_data.csv
 
 # Security & MLflow
 mlflow.db
+
+# Docs build
+site/
